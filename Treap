@@ -1,0 +1,574 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <algorithm>
+#include <unordered_map>
+#include <unordered_set>
+#include <cmath>
+#include <map>
+#include <iomanip>
+#include <fstream>
+#include <queue>
+#include <stack>
+#include <iomanip>
+#include <numeric>
+#include <limits>
+#include <set>
+#include <stdlib.h>
+#include <random>
+#include <ranges>
+#include <utility>
+
+using namespace std;
+
+mt19937 rng(13);
+
+
+vector<vector<int>> answer;
+set<int> pred_x, pred_y;
+
+class Treap
+{
+public:
+    struct Node
+    {
+        int x, y, Size = 1, n, Min;
+        Node* left = nullptr;
+        Node* right = nullptr;
+        Node* parent = nullptr;
+        Node() {};
+        Node(int x, int y, int n) : x(x), y(y), Size(1), n(n), Min(x) {};
+        void Recalc()
+        {
+            Size = 1 + (left != nullptr ? left->Size : 0) + (right != nullptr ? right->Size : 0);
+            Min = min((left != nullptr ? left->Min : 2147483647), (right != nullptr ? right->Min : 2147483647));
+            Min = min(x, Min);
+        }
+    };
+
+private:
+
+    static const int capacity = 5 * 1e5 + 10, none = 1147483647;
+    int number_of_leaves = 0;
+    Node* memory = new Node[capacity];
+    int Offset = 0;
+    Node* Alloc() { return memory + Offset++; }
+    Node* Root = nullptr;
+
+
+    int Get_size(Node* a)
+    {
+        return (a != nullptr ? a->Size : 0);
+    }
+
+    Node* Merge(Node* a, Node* b)
+    {
+        if (a == nullptr) return b;
+        if (b == nullptr) return a;
+
+        if (a->y < b->y)
+        {
+            a->right = Merge(a->right, b);
+            a->Recalc();
+            return a;
+        }
+        else
+        {
+            b->left = Merge(a, b->left);
+            b->Recalc();
+            return b;
+        }
+    }
+
+    pair<Node*, Node*> Split(Node* a, int val)
+    {
+        if (a == nullptr) return { nullptr, nullptr };
+        if (a->x < val)
+        {
+            auto p = Split(a->right, val);
+            a->right = p.first;
+            a->Recalc();
+            return { a, p.second };
+        }
+        else
+        {
+            auto p = Split(a->left, val);
+            a->left = p.second;
+            a->Recalc();
+            return { p.first, a };
+        }
+    }
+
+    tuple <Node*, Node*, Node*>Split3(Node* a, int val)
+    {
+        Node* a1;
+        Node* a2;
+        Node* a3;
+        tie(a1, a2) = Split(a, val);
+        tie(a2, a3) = Split(a2, val + 1);
+        return { a1, a2, a3 };
+    }
+
+    pair<Node*, Node*> Split_for(Node* a, int val)
+    {
+        if (a == nullptr) return { nullptr, nullptr };
+        if (Get_size(a->left) < val)    
+        {
+            auto p = Split_for(a->right, val - Get_size(a->left) - 1);
+            a->right = p.first;
+            a->Recalc();
+            return { a, p.second };
+        }
+        else
+        {
+            auto p = Split_for(a->left, val);
+            a->left = p.second;
+            a->Recalc();
+            return { p.first, a };
+        }
+    }
+
+    tuple<Node*, Node*, Node*> Split_for3(Node* a, int left, int right)
+    {
+        Node* a1; Node* a2; Node* a3;
+        tie(a1, a3) = Split_for(a, right);
+        tie(a1, a2) = Split_for(a1, left - 1);
+        return { a1, a2, a3 };
+    }
+
+    void Reorder(Node* a, int left, int right)
+    {
+        Node* a1; Node* a2; Node* a3;
+        tie(a1, a2, a3) = Split_for3(a, left, right);
+        Root = Merge(a2, Merge(a1, a3));
+    }
+
+
+    int Min_in(Node* a, int left, int right)
+    {
+        Node* a1, * a2, * a3;
+        tie(a1, a2, a3) = Split_for3(a, left, right);
+        int res = a2->Min;
+        Root = Merge(a1, Merge(a2, a3));
+        return res;
+    }
+
+    Node* Insert_after(Node* a, int i, int x)
+    {
+        Node* to_add = Alloc();
+        to_add->x = x; to_add->y = rng(); to_add->Min = x;
+        auto p = Split_for(a, i);
+        p.second = Merge(to_add, p.second);
+        return Merge(p.first, p.second);
+    }
+
+    bool Has_val(Node* a, int val)
+    {
+        if (a == nullptr) return 0;
+        if (a->x == val) return 1;
+        if (a->x < val && a->right != nullptr) return Has_val(a->right, val);
+        if (a->x > val && a->left != nullptr) return Has_val(a->left, val);
+        return 0;
+    }
+
+    Node* Prev(Node* a, int val)
+    {
+        Node* current = Root;
+        Node* successor = nullptr;
+        while (current != nullptr)
+        {
+            if (current->x < val)
+            {
+                successor = current;
+                current = current->right;
+            }
+            else
+            {
+                current = current->left;
+            }
+        }
+        return successor;
+    }
+
+    Node* Next(Node* a, int val)
+    {
+        Node* current = Root;
+        Node* successor = nullptr;
+        while (current != nullptr)
+        {
+            if (current->x > val)
+            {
+                successor = current;
+                current = current->left;
+            }
+            else
+            {
+                current = current->right;
+            }
+        }
+        return successor;
+    }
+
+    int Count(Node* a, int val)
+    {
+        Node* a1, * a2, * a3;
+        tie(a1, a2, a3) = Split3(a, val);
+        int res = 0;
+        if (a2 != nullptr)
+        {
+            res = a2->Size;
+        }
+        Root = Merge(a1, Merge(a2, a3));
+        return res;
+    }
+
+    int Count_less(Node* a, int val)
+    {
+        Node* a1, * a2, * a3;
+        tie(a1, a2, a3) = Split3(a, val);
+        int res = 0;
+        if (a1 != nullptr)
+        {
+            res = a1->Size;
+        }
+        Root = Merge(a1, Merge(a2, a3));
+        return res;
+    }
+
+    Node* Insert(Node* a, int x)
+    {
+        Node* to_add = Alloc();
+        to_add->x = x; to_add->y = rng();
+        auto p = Split(a, x);
+        p.second = Merge(to_add, p.second);
+        return Merge(p.first, p.second);
+    }
+
+
+    Node* Erase(Node* a, int val)
+    {
+        Node* a1, * a2, * a3;
+        tie(a1, a2, a3) = Split3(a, val);
+        if (a2 != nullptr)
+        {
+            a2 = Merge(a2->left, a2->right);
+        }
+        return Merge(a1, Merge(a2, a3));
+    }
+
+    void DFSearch(Node* a)
+    {
+        if (a->left != nullptr)
+        {
+            answer[a->left->n][0] = a->n;
+            answer[a->n][1] = a->left->n;
+            DFSearch(a->left);
+        }
+        if (a->right != nullptr)
+        {
+            answer[a->right->n][0] = a->n;
+            answer[a->n][2] = a->right->n;
+            DFSearch(a->right);
+        }
+    }
+
+    int Kth(Node* a, int val)
+    {
+        if (a->left != nullptr)
+        {
+            if (a->left->Size == val - 1)
+            {
+                return a->x;
+            }
+            else if (a->left->Size < val && a->right != nullptr)
+            {
+                return Kth(a->right, val - a->left->Size - 1);
+            }
+            else return Kth(a->left, val);
+        }
+        else if (val == 1)
+        {
+            return a->x;
+        }
+        else return Kth(a->right, val - 1);
+    }
+
+
+    template <typename T>
+    void connect(T from, T to) {
+        vector<Node*> st;
+        for (Node* it : ranges::subrange(from, to))
+        {
+            while (!st.empty() && st.back()->y > it->y)
+            {
+                st.pop_back();
+            }
+            if (!st.empty())
+            {
+                if (!it->parent || it->parent->y < st.back()->y)
+                {
+                    it->parent = st.back();
+                }
+            }
+            st.push_back(it);
+        }
+    }
+
+    void build(vector<Node*>& nodes, int n)
+    {
+
+        connect(nodes.begin(), nodes.end());
+        connect(nodes.rbegin(), nodes.rend());
+        for (int i = 0; i < n; i++)
+        {
+            if (nodes[i]->parent != nullptr)
+            {
+                if (nodes[i]->parent->x < nodes[i]->x)
+                {
+                    nodes[i]->parent->right = nodes[i];
+                }
+                else
+                {
+                    nodes[i]->parent->left = nodes[i];
+                }
+            }
+        }
+        Root = nodes[min_element(nodes.begin(), nodes.end(), [](Node* a, Node* b) {return a->y < b->y; }) - nodes.begin()];
+    }
+
+
+    void Out(Node* root, bool y, bool size, bool Min)
+    {
+        if (root)
+        {
+            cout << "#";
+            cout << setw(10) << root->x << setw(5) << '|';
+
+            if (y)
+                cout << setw(13) << root->y << setw(5) << '|';
+
+            if (size)
+                cout << setw(7) << root->Size << setw(7) << '|';
+
+            if (Min)
+                cout << setw(7) << root->Min << setw(7) << '|';
+
+            if (root->left)
+            {
+                cout << setw(7) << root->left->x << setw(7) << '|';
+            }
+            else
+                cout << setw(7) << 0 << setw(7) << '|';
+
+            if (root->right)
+            {
+                cout << setw(7) << root->right->x << setw(7) << '|';
+            }
+            else cout << setw(7) << 0 << setw(7) << '|';
+
+
+            cout << '\n';
+
+            if (root->left)
+            {
+                Out(root->left, y, size, Min);
+            }
+            if (root->right)
+            {
+                Out(root->right, y, size, Min);
+            }
+        }
+    }
+
+
+public:
+
+    bool Has_val(int val)
+    {
+        return Has_val(Root, val);
+    }
+    void Reorder(int left, int right)
+    {
+        Reorder(Root, left, right);
+    }
+    void Prev(int val)
+    {
+        Node* ans = Prev(Root, val);
+        if (ans == nullptr)
+        {
+            cout << "none\n";
+        }
+        else cout << ans->x << '\n';
+    }
+    void Next(int val)
+    {
+        Node* ans = Next(Root, val);
+        if (ans == nullptr)
+        {
+            cout << "none\n";
+        }
+        else cout << ans->x << '\n';
+    }
+    int Count(int val)
+    {
+        return Count(Root, val);
+    }
+    int Count_less(int val)
+    {
+        return Count_less(Root, val);
+    }
+    void Insert(int x)
+    {
+        Root = Insert(Root, x);
+    }
+    void Erase(int x)
+    {
+        Root = Erase(Root, x);
+    }
+    void DFSearch()
+    {
+        DFSearch(Root);
+    }
+    int Kth(int val)
+    {
+        if (val > 0 && Root != nullptr && val <= Root->Size)
+            return Kth(Root, val);
+        else return -1;
+    }
+    void Out(bool y, bool size, bool Min)
+    {
+        cout << "#" << setw(10) << 'x' << setw(5) << '|';
+        if (y)
+            cout << setw(9) << 'y' << setw(9) << '|';;
+        if (size)
+            cout << setw(9) << "size" << setw(5) << '|';
+        if (Min)
+            cout << setw(9) << "min" << setw(5) << '|';
+        cout << setw(9) << "left" << setw(5) << '|';
+        cout << setw(9) << "right" << setw(5) << '|';
+        cout << '\n';
+        Out(Root, y, size, Min);
+    }
+    void build(vector<vector<int>>& arr)
+    {
+        vector<Node*>arx;
+        for (int i = 0; i < (int)arr.size(); i++)
+        {
+            arx.push_back(Alloc());
+            arx[i]->x = arr[i][0];
+            arx[i]->y = arr[i][1];
+            arx[i]->n = arr[i][2];
+        }
+        this->build(arx, (int)arr.size());
+    }
+    int Min_in(int left, int right)
+    {
+        return Min_in(Root, left, right);
+    }
+    void Insert_after(int l, int x)
+    {
+        Root = Insert_after(Root, l, x);
+    }
+
+};
+
+int main()
+{
+    cin.tie(0); cout.tie(0);
+    ios_base::sync_with_stdio(false);
+
+    Treap my_Treap;
+
+
+    int n, m, l, r, x;
+    cin >> n >> m;
+
+    for (int i = 1; i <= m; i++)
+    {
+        my_Treap.Insert(i);
+    }
+
+    for (int kt = 1; kt <= m; ++kt)
+    {
+        cout << my_Treap.Kth(kt) << ' ';
+    }
+    cout << '\n';
+
+    string st;
+    for (int i = 0; i < n; i++)
+    {
+        cin >> st;
+        if (st == "insert")
+        {
+            cin >> x;
+            my_Treap.Insert(x);
+            m++;
+        }
+        else if (st == "erase")
+        {
+            cin >> x;
+            my_Treap.Erase(x);
+            m--;
+        }
+        else if (st == "exists")
+        {
+            cin >> x;
+            if (my_Treap.Has_val(x))
+            {
+                cout << "true\n";
+            }
+            else cout << "false\n";
+        }
+        else if (st == "next")
+        {
+            cin >> x;
+            my_Treap.Next(x);
+        }
+        else if (st == "prev")
+        {
+            cin >> x;
+            my_Treap.Prev(x);
+        }
+        else if (st == "count")
+        {
+            cin >> x;
+            cout << my_Treap.Count(x) << '\n';
+        }
+        else if (st == "count_less")
+        {
+            cin >> x;
+            cout << my_Treap.Count_less(x) << '\n';
+        }
+
+        else if (st == "kth")
+        {
+            cin >> x;
+            cout << my_Treap.Kth(x) << '\n';
+        }
+
+        else if (st == "reorder")
+        {
+            cin >> l >> r;
+            my_Treap.Reorder(l, r);
+            for (int kt = 1; kt <= m; ++kt)
+            {
+                cout << my_Treap.Kth(kt) << ' ';
+            }
+            cout << '\n';
+        }
+
+        else if (st == "out")
+        {
+            bool y = 1, size = 1, Min = 1;
+            my_Treap.Out(y, size, Min);
+        }
+
+        else if (st == "exit")
+        {
+            exit(5252);
+        }
+
+    }
+
+    return 0;
+}
