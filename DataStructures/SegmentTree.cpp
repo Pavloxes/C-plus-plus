@@ -109,13 +109,13 @@ public:
         add(1, 0, MAXN, from, to, val);
     }
 
-    //добавляет значение val для элемента с индексом ind
+    //добавляет значение val для элемента с индексом ind в 1 индесации
     void add(int ind, my_type val)
     {
         add(1, 0, MAXN, ind - 1, ind, val);
     }
 
-    //меняет значение элемента с индексом ind на val
+    //меняет значение элемента с индексом ind на val в 1 индесации
     void update(int ind, my_type val)
     {
         update(1, 0, MAXN, ind, val);
@@ -127,7 +127,7 @@ public:
         return get(1, 0, MAXN, l, r);
     }
 
-    //возвращает значение элемента с индексом ind
+    //возвращает значение элемента с индексом ind в 1 индесации
     my_type get(int ind)
     {
         return get(1, 0, MAXN, ind - 1, ind);
