@@ -55,7 +55,7 @@ private:
     {
         if (seg_r <= l || r <= seg_l)
         {
-            return 0;
+            return e0;
         }
         if (seg_l <= l && r <= seg_r)
         {
