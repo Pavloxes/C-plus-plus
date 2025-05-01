@@ -16,7 +16,7 @@ my_type my_sum(my_type a, my_type b)
 }
 
 template <typename Type>
-class SegmentTree
+class segment_tree
 {
 private:
     Type e0;
@@ -88,7 +88,7 @@ private:
 
 public:
     //инициализация дерева
-    SegmentTree(int n, Type(*func)(Type a, Type b), Type e)
+    segment_tree(int n, Type(*func)(Type a, Type b), Type e)
     {
         e0 = e;
         f = func;
@@ -161,7 +161,7 @@ signed main()
 
     int n = 10, from, to, val;
 
-    SegmentTree<my_type> my_max_segment_tree(n, my_max, -1);
+    segment_tree<my_type> my_max_segment_tree(n, my_max, -1);
     for (int i = 0; i < n; ++i)
     {
         my_max_segment_tree.change(i, i + 1);
@@ -178,7 +178,7 @@ signed main()
 
 //-----------------------------------------------------
 
-    SegmentTree<my_type> my_sum_segment_tree(n, my_sum, 0);
+    segment_tree<my_type> my_sum_segment_tree(n, my_sum, 0);
     for (int i = 0; i < n; ++i)
     {
         my_sum_segment_tree.change(i, i + 12);
