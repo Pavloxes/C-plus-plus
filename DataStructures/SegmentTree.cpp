@@ -26,7 +26,7 @@ private:
 
     void push_me(int v, int from, int to)
     {
-        ar[v] += push[v];
+        ar[v] += push[v];// если ДО на сумму, заменить на: ar[v] += push[v] * (to - from);
         if (from + 1 != to)
         {
             push[v * 2] += push[v];
@@ -57,6 +57,7 @@ private:
         {
             return e0;
         }
+        push_me(v, l, r);
         if (seg_l <= l && r <= seg_r)
         {
             return ar[v];
